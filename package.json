@@ -1,7 +1,7 @@
 {
   "name": "bot-bombeiros-bmi",
   "version": "1.0.0",
-  "description": "Bot de bate-ponto dos Bombeiros BMI",
+  "description": "Bot de bate-ponto",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
