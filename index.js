@@ -256,7 +256,7 @@ async function openShift(interaction) {
   .setTitle('🚒 PONTO EM ANDAMENTO - BOMBEIROS BMI')
   .addFields(
     { name: '👤 MEMBRO', value: `<@${interaction.user.id}>`, inline: false },
-    { name: '🕒 INÍCIO', value: new Date().toLocaleTimeString('pt-BR'), inline: true },
+    { name: '🕒 INÍCIO', value: new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' })
     { name: '📡 STATUS', value: '🟢 Em serviço...', inline: true }
   )
   .setTimestamp();
