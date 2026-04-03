@@ -6,6 +6,7 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  StringSelectMenuBuilder,
   PermissionsBitField,
   Events,
   REST,
@@ -140,10 +141,71 @@ function buildPainelEmbed() {
 
 function buildPainelButtons() {
   return new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('abrir_ponto').setLabel('ABRIR').setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId('fechar_ponto').setLabel('FECHAR').setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId('ver_horas').setLabel('HORAS').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('ver_ranking').setLabel('RANKING').setStyle(ButtonStyle.Primary)
+    new ButtonBuilder()
+      .setCustomId('abrir_ponto')
+      .setLabel('ABRIR')
+      .setStyle(ButtonStyle.Success),
+
+    new ButtonBuilder()
+      .setCustomId('fechar_ponto')
+      .setLabel('FECHAR')
+      .setStyle(ButtonStyle.Danger),
+
+    new ButtonBuilder()
+      .setCustomId('ver_horas')
+      .setLabel('HORAS')
+      .setStyle(ButtonStyle.Secondary),
+
+    new ButtonBuilder()
+      .setCustomId('painel_controle')
+      .setEmoji('⚙️')
+      .setStyle(ButtonStyle.Secondary)
+  );
+}
+
+function buildPainelControleEmbed() {
+  return new EmbedBuilder()
+    .setTitle('🌐 | PAINEL DE CONTROLE BATE-PONTO')
+    .setDescription(
+      [
+        'O painel de controle permite a realização de tarefas de gerenciamento como:',
+        '',
+        '🔄 Atualizar ranking de horas;',
+        '⏹️ Fechar todos os pontos;',
+        '🗑️ Resetar horas geral;',
+        '',
+        CONFIG.instituicaoNome,
+      ].join('\n')
+    )
+    .setColor(0xff6a00)
+    .setTimestamp();
+}
+
+function buildPainelControleMenu() {
+  return new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId('menu_painel_controle')
+      .setPlaceholder('Faça uma seleção')
+      .addOptions(
+        {
+          label: 'Atualizar ranking de horas',
+          description: 'Atualiza a mensagem do ranking no canal configurado',
+          value: 'atualizar_ranking',
+          emoji: '🔄',
+        },
+        {
+          label: 'Fechar todos os pontos',
+          description: 'Finaliza todos os pontos em aberto',
+          value: 'fechar_todos',
+          emoji: '⏹️',
+        },
+        {
+          label: 'Resetar horas geral',
+          description: 'Zera as horas de todos os membros',
+          value: 'resetar_geral',
+          emoji: '🗑️',
+        }
+      )
   );
 }
 
@@ -250,26 +312,26 @@ async function openShift(interaction) {
     guildId: guild.id,
   };
   saveSessions();
-  
+
   const embed = new EmbedBuilder()
-  .setColor(0xFFA500)
-  .setTitle('🚒 PONTO EM ANDAMENTO - BOMBEIROS BMI')
-  .addFields(
-    { name: '👤 MEMBRO', value: `<@${interaction.user.id}>`, inline: false },
-    {
-      name: '🕒 INÍCIO',
-      value: new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
-      inline: true
-    },
-    { name: '📡 STATUS', value: '🟢 Em serviço...', inline: true }
-  )
-  .setTimestamp();
+    .setColor(0xFFA500)
+    .setTitle('🚒 PONTO EM ANDAMENTO - BOMBEIROS BMI')
+    .addFields(
+      { name: '👤 MEMBRO', value: `<@${interaction.user.id}>`, inline: false },
+      {
+        name: '🕒 INÍCIO',
+        value: new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+        inline: true
+      },
+      { name: '📡 STATUS', value: '🟢 Em serviço...', inline: true }
+    )
+    .setTimestamp();
 
-const canal = interaction.client.channels.cache.get(CONFIG.canalRegistrosId);
+  const canal = interaction.client.channels.cache.get(CONFIG.canalRegistrosId);
 
-if (canal) {
-  await canal.send({ embeds: [embed] });
-}
+  if (canal) {
+    await canal.send({ embeds: [embed] });
+  }
 
   return interaction.reply({
     content: `Seu ponto foi aberto com sucesso em **${voiceChannel.name}**.`,
@@ -359,29 +421,6 @@ async function showHours(interaction) {
   return interaction.reply({ embeds: [embed], ephemeral: true });
 }
 
-async function showRankingEphemeral(interaction) {
-  const ordered = Object.entries(userHours)
-    .sort((a, b) => (b[1].totalMs || 0) - (a[1].totalMs || 0))
-    .slice(0, 10);
-
-  const lines = [];
-  let position = 1;
-
-  for (const [userId, info] of ordered) {
-    const member = await interaction.guild.members.fetch(userId).catch(() => null);
-    lines.push(`**${position}.** ${member ? member.toString() : `<@${userId}>`} - ${msToHumanDetailed(info.totalMs || 0)}`);
-    position++;
-  }
-
-  const embed = new EmbedBuilder()
-    .setTitle(`🏆 RANKING - ${CONFIG.instituicaoNome}`)
-    .setDescription(lines.length ? lines.join('\n') : 'Nenhum registro encontrado até o momento.')
-    .setColor(0xff6a00)
-    .setTimestamp();
-
-  return interaction.reply({ embeds: [embed], ephemeral: true });
-}
-
 client.once(Events.ClientReady, async () => {
   console.log(`✅ Bot online como ${client.user.tag}`);
 
@@ -465,7 +504,67 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.customId === 'abrir_ponto') return openShift(interaction);
     if (interaction.customId === 'fechar_ponto') return closeShift(interaction, false);
     if (interaction.customId === 'ver_horas') return showHours(interaction);
-    if (interaction.customId === 'ver_ranking') return showRankingEphemeral(interaction);
+
+    if (interaction.customId === 'painel_controle') {
+      if (!isAdmin(interaction.member)) {
+        return interaction.reply({
+          content: 'Você não tem permissão para acessar o painel de controle.',
+          ephemeral: true,
+        });
+      }
+
+      return interaction.reply({
+        embeds: [buildPainelControleEmbed()],
+        components: [buildPainelControleMenu()],
+        ephemeral: true,
+      });
+    }
+  }
+
+  if (interaction.isStringSelectMenu()) {
+    if (interaction.customId !== 'menu_painel_controle') return;
+
+    if (!isAdmin(interaction.member)) {
+      return interaction.reply({
+        content: 'Você não tem permissão para usar este painel.',
+        ephemeral: true,
+      });
+    }
+
+    const opcao = interaction.values[0];
+
+    if (opcao === 'atualizar_ranking') {
+      await sendOrUpdateRanking(interaction.guild);
+      return interaction.reply({
+        content: 'Ranking atualizado com sucesso.',
+        ephemeral: true,
+      });
+    }
+
+    if (opcao === 'fechar_todos') {
+      const ids = Object.keys(activeSessions);
+
+      for (const userId of ids) {
+        const fakeInteraction = { guild: interaction.guild };
+        await closeShift(fakeInteraction, true, userId);
+      }
+
+      return interaction.reply({
+        content: 'Todos os pontos em aberto foram finalizados.',
+        ephemeral: true,
+      });
+    }
+
+    if (opcao === 'resetar_geral') {
+      userHours = {};
+      saveHours();
+      await sendOrUpdateRanking(interaction.guild);
+
+      return interaction.reply({
+        content: 'Todas as horas foram resetadas com sucesso.',
+        ephemeral: true,
+      });
+    }
   }
 });
 
