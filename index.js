@@ -250,6 +250,22 @@ async function openShift(interaction) {
     guildId: guild.id,
   };
   saveSessions();
+  
+  const embed = new EmbedBuilder()
+  .setColor(0xFFA500)
+  .setTitle('🚒 PONTO EM ANDAMENTO - BOMBEIROS BMI')
+  .addFields(
+    { name: '👤 MEMBRO', value: `<@${interaction.user.id}>`, inline: false },
+    { name: '🕒 INÍCIO', value: new Date().toLocaleTimeString('pt-BR'), inline: true },
+    { name: '📡 STATUS', value: '🟢 Em serviço...', inline: true }
+  )
+  .setTimestamp();
+
+const canal = interaction.client.channels.cache.get(CONFIG.canalRegistrosId);
+
+if (canal) {
+  await canal.send({ embeds: [embed] });
+}
 
   return interaction.reply({
     content: `Seu ponto foi aberto com sucesso em **${voiceChannel.name}**.`,
