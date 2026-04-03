@@ -244,7 +244,11 @@ async function sendRegistro(guild, userId, startedAt, endedAt, totalMs, auto = f
 
 async function sendOrUpdateRanking(guild) {
   const canal = guild.channels.cache.get(CONFIG.canalRankingId);
-  if (!canal) return;
+
+  if (!canal) {
+    console.log('❌ Canal de ranking não encontrado.');
+    return;
+  }
 
   const ordered = Object.entries(userHours)
     .sort((a, b) => (b[1].totalMs || 0) - (a[1].totalMs || 0))
@@ -260,7 +264,9 @@ async function sendOrUpdateRanking(guild) {
     lines.push(`${emoji} ${nome}: **${msToHumanDetailed(totalMs)}**`);
   }
 
-  if (lines.length === 0) lines.push('Nenhum registro encontrado até o momento.');
+  if (lines.length === 0) {
+    lines.push('Nenhum registro encontrado até o momento.');
+  }
 
   const embed = new EmbedBuilder()
     .setTitle(CONFIG.tituloRanking)
@@ -277,13 +283,25 @@ async function sendOrUpdateRanking(guild) {
     .setColor(0xff6a00)
     .setTimestamp();
 
-  const fetched = await canal.messages.fetch({ limit: 20 }).catch(() => null);
-  const oldMessage = fetched?.find((m) => m.author.id === client.user.id && m.embeds.length > 0);
+  try {
+    const fetched = await canal.messages.fetch({ limit: 20 }).catch(() => null);
 
-  if (oldMessage) {
-    await oldMessage.edit({ embeds: [embed] }).catch(() => null);
-  } else {
-    await canal.send({ embeds: [embed] }).catch(() => null);
+    const oldMessage = fetched?.find(
+      (m) =>
+        m.author.id === client.user.id &&
+        m.embeds.length > 0 &&
+        m.embeds[0].title === CONFIG.tituloRanking
+    );
+
+    if (oldMessage) {
+      await oldMessage.edit({ embeds: [embed] });
+      console.log('✅ Ranking atualizado.');
+    } else {
+      await canal.send({ embeds: [embed] });
+      console.log('✅ Ranking enviado no canal.');
+    }
+  } catch (error) {
+    console.log('❌ Erro ao atualizar ranking:', error);
   }
 }
 
